@@ -94,11 +94,11 @@ class ColorChange(Script):
 
 
     def execute(self, data: list):
-        height = self.getHeight(data)
+        height = self.getHeight(data) #得到模型最高的尺寸
         aaaaa = ','.join(data)
         CGG = re.findall(r"(?<=LAYER_COUNT:).*?(?=\n)", aaaaa)
         CHH=float(height)/float(CGG[0])
-        """data is a list. Each index contains a layer"""
+        """数据是一个列表。每个索引包含一个层"""
         xv = self.getSettingValueByKey("a_trigger")
         lm2 = str(self.getSettingValueByKey("layer_number"))
 

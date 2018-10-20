@@ -4,6 +4,7 @@ from ..Script import Script
 from UM.Resources import Resources
 import pickle
 import os
+import re
 from UM.i18n import i18nCatalog
 i18n_catalog = i18nCatalog('cura')
 
@@ -79,39 +80,6 @@ class AdvertWord(Script):
                 '            "version": 2,' \
                 '            "settings":' \
                 '            {' \
-                '            ' \
-                '                "CutInfill":' \
-                '                {' \
-                '                    "label":"*截留填充",' \
-                '                    "description": "",' \
-                '                    "type": "bool",' \
-                '                    "default_value": %s' \
-                '                },' \
-                '                "CutInfillHeight":' \
-                '                {' \
-                '                    "label": "    截留高度   ",' \
-                '                    "description": "",' \
-                '                    "unit": "mm",' \
-                '                    "type": "float",' \
-                '                    "default_value": %f,' \
-                '                    "minimum_value": "0",' \
-                '                    "minimum_value_warning": "0.0",' \
-                '                    "maximum_value_warning": "200000",' \
-                '                    "enabled": "CutInfill"' \
-                '                },' \
-                '                "CutInfillLayerNr":' \
-                '                {' \
-                '                    "label": "    截留层数   ",' \
-                '                    "description": "",' \
-                '                    "unit": "层",' \
-                '                    "type": "int",' \
-                '                    "default_value": %d,' \
-                '                    "minimum_value": "0",' \
-                '                    "minimum_value_warning": "0.0",' \
-                '                    "maximum_value_warning": "200000",' \
-                '                    "enabled": "CutInfill"' \
-                '                },' \
-                '                ' \
                 '                "SwitchFilamentBackward":' \
                 '                {' \
                 '                    "label":"*换色时进退料使能",' \
@@ -391,7 +359,7 @@ class AdvertWord(Script):
                 '                    "enabled": "Layer5"' \
                 '                }' \
                 '            }' \
-                '        }' % (str(self.para.enableCutInfill).lower(), self.para.cutInfillHeight, self.para.cutInfillLayerNr, str(self.para.enableSwitchFilamentBackward).lower(), str(self.para.enableSwitchFilamentHome).lower(), self.para.homeDelay, str(self.para.switchFilamentReduceSpeed).lower(), self.para.reduceSpeedRatio, self.para.reduceSpeedELength, self.para.backwardLength, self.para.backwardSpeed, self.para.forwardLength, self.para.forwardSpeed, str(self.para.layer0).lower(), self.para.z_ratio0, self.para.extrude_ratio0, str(self.para.layer1).lower(), self.para.z_ratio1, self.para.extrude_ratio1, str(self.para.layer2).lower(), self.para.z_ratio2, self.para.extrude_ratio2, str(self.para.layer3).lower(), self.para.z_ratio3, self.para.extrude_ratio3, str(self.para.layer4).lower(), self.para.z_ratio4, self.para.extrude_ratio4, str(self.para.layer5).lower(), self.para.z_ratio5, self.para.extrude_ratio5)
+                '        }' % ( str(self.para.enableSwitchFilamentBackward).lower(), str(self.para.enableSwitchFilamentHome).lower(), self.para.homeDelay, str(self.para.switchFilamentReduceSpeed).lower(), self.para.reduceSpeedRatio, self.para.reduceSpeedELength, self.para.backwardLength, self.para.backwardSpeed, self.para.forwardLength, self.para.forwardSpeed, str(self.para.layer0).lower(), self.para.z_ratio0, self.para.extrude_ratio0, str(self.para.layer1).lower(), self.para.z_ratio1, self.para.extrude_ratio1, str(self.para.layer2).lower(), self.para.z_ratio2, self.para.extrude_ratio2, str(self.para.layer3).lower(), self.para.z_ratio3, self.para.extrude_ratio3, str(self.para.layer4).lower(), self.para.z_ratio4, self.para.extrude_ratio4, str(self.para.layer5).lower(), self.para.z_ratio5, self.para.extrude_ratio5)
         return rtDat
 
     
@@ -442,9 +410,9 @@ class AdvertWord(Script):
 
     
     def getCurrentPara(self):
-        self.para.enableCutInfill = self.getSettingValueByKey('CutInfill')
-        self.para.cutInfillHeight = self.getSettingValueByKey('CutInfillHeight')
-        self.para.cutInfillLayerNr = int(self.getSettingValueByKey('CutInfillLayerNr'))
+        # self.para.enableCutInfill = self.getSettingValueByKey('CutInfill')
+        # self.para.cutInfillHeight = self.getSettingValueByKey('CutInfillHeight')
+        # self.para.cutInfillLayerNr = int(self.getSettingValueByKey('CutInfillLayerNr'))
         self.para.enableSwitchFilamentBackward = self.getSettingValueByKey('SwitchFilamentBackward')
         self.para.enableSwitchFilamentHome = self.getSettingValueByKey('SwitchFilamentHome')
         self.para.homeDelay = self.getSettingValueByKey('HomeDelay')
@@ -484,12 +452,13 @@ class AdvertWord(Script):
     
     def _get_ratio(self, s):
         if s == 'Extruder1':
-            return 0
+            return "T0"
         if s == 'Extruder2':
-            return 1
+            return "T1"
         return None
 
-    
+
+
     def execute(self, data):
         paraList = []
         self.getCurrentPara()
@@ -505,6 +474,13 @@ class AdvertWord(Script):
             paraList.append((self.para.z_ratio4 / 100, self._get_ratio(self.para.extrude_ratio4), 0))
         if self.para.layer5:
             paraList.append((self.para.z_ratio5 / 100, self._get_ratio(self.para.extrude_ratio5), 0))
+        # if self.para.enableSwitchFilamentBackward: #换色时的进退料使能
+        #     if self.para
+        #吧链表转换成字符长串
+        datalist = ','.join(data)
+        #总层数
+        sum_layerlist = re.findall(r"(?<=LAYER_COUNT:).*?(?=\n)", datalist)
+        sum_layer = float(sum_layerlist[0])
         index = -1
         height = 0
         height_list = []
@@ -512,10 +488,12 @@ class AdvertWord(Script):
         b_gradient_list = []
         if height == 0:
             height = self.getHeight(data)
+        #计算每层的层高
+        layer_height = float(height)/float(sum_layer)
         print("paraList:",paraList)
         print("height:",height)
         print('-----------list start---------------------')
-        
+
         def item_in_list(list, item):
             try:
                 return list.index(item) >= 0
@@ -525,219 +503,231 @@ class AdvertWord(Script):
             if item_in_list(height_list, Z_ratio * height) == 0:
                 height_list.append(Z_ratio * height)
                 ratio_list.append(extrude_ratio)
-                b_gradient_list.append(int(b_gradient))
-                continue
-            ratio_list[height_list.index(Z_ratio * height)] = extrude_ratio
-            b_gradient_list[height_list.index(Z_ratio * height)] = int(b_gradient)
-        
-        if item_in_list(height_list, 0) == 0:#最底层是否有记录
-            height_list.append(0)
-            ratio_list.append(1)
-            b_gradient_list.append(int(0))
-        if item_in_list(height_list, height) == 0:#最高层是否有记录
-            height_list.append(height)
-            ratio_list.append(1)
-            b_gradient_list.append(int(0))
-        mapped_height_list = copy.deepcopy(height_list)
-        mapped_height_list.sort()
-        mapped_ratio_list = []
-        mapped_gradient_list = []
-        mapped_ratio_step = []
-        RATIO_MIN = 0 #比例最小值
-        for h in mapped_height_list:
-            t_ratio = ratio_list[height_list.index(h)]
-            if t_ratio < RATIO_MIN:
-                t_ratio = RATIO_MIN
-            if t_ratio > 1 - RATIO_MIN:
-                t_ratio = 1 - RATIO_MIN
-            mapped_ratio_list.append(t_ratio)
-            mapped_gradient_list.append(b_gradient_list[height_list.index(h)])
-        
-        for h in mapped_height_list:
-            index = mapped_height_list.index(h)
-            if index != len(mapped_height_list) - 1 and mapped_height_list[index] != mapped_height_list[index + 1]:
-                mapped_ratio_step.append((mapped_ratio_list[index + 1] - mapped_ratio_list[index]) / (mapped_height_list[index + 1] - mapped_height_list[index]))
-                continue
-            mapped_ratio_step.append(0)
-        
-        print('----------map list start----------------------')
-        print(mapped_height_list)
-        print(mapped_ratio_list)
-        print(mapped_ratio_step)
-        print(mapped_gradient_list)
-        print('----------map list end----------------------')
-        index = -1
-        currE = 0
-        currX = 0
-        currY = 0
-        currF = 3600
-        scriptCnt = 0
-        layer_init = 0
+                try:
+                    b_gradient_list.append(round(Z_ratio * sum_layer))  # 层数为int值 向上取整
+                except:
+                    print("sum layer errer")
+
         switchNote = ';extruder switch YY'
-        cutFlag = False
-        enableCutInfillStart = self.para.enableCutInfill
-        keepLayer = 0#保留层
-        ebackWard = 0
-        lastEBackWard = 0
-        mapped_ratio_index = 0
-        lastValidLayerZ = 0
-        lastZ = 0
-        absolutely = True
-        reduceSpeedAppending = False
-        reduceSpeedLastE = 0
-        filamentPrepareAppending = True #耗材准备挤出
+        curr_layer = -1 #当前层
+        curr_E = 0 #当前挤出机值
+        prev_E = 0# 上一次挤出
+        reduceSpeedRatio = False#开始记录当前挤出值
+        reduceSpeedRatio1 = False#为了确定已经换收过速
         for layer in data:
             index += 1
+            stringcopy = ""
             lines = layer.split('\n')
             gcodeChangeFlag = False
+            extruderChangeFlag = False
             for lineno in range(len(lines)):
                 line = lines[lineno]
+                #计算当前层计数
+                if line.startswith(';LAYER:'):
+                    curr_ = line.split(':')
+                    print("SB:", curr_)
+                    curr_layer = int(curr_[1])
+                if curr_layer in b_gradient_list and not extruderChangeFlag:  # 找到当前打印头
+                    stringcopy = "\n" + "G91 ;relative " + switchNote+ "\n"
+                    stringcopy = stringcopy + ratio_list[b_gradient_list.index(curr_layer)]  + switchNote+ "\n"
+                    stringcopy = stringcopy + "G90;absolute" + switchNote+ "\n"
+                    lines[lineno] += stringcopy + "\n"
+                    extruderChangeFlag = True
+                    reduceSpeedRatio = True
+                    gcodeChangeFlag = True
+
                 if line.startswith('G1 ') or line.startswith('G0 '):
-                    s = line.split(' ')
-                    (Z, E) = (None, None)
-                    for item in s[1:]:
+                    line_split = line.split(' ')
+                    for item in line_split[1:]:
                         if len(item) <= 1:
                             continue
-                        if item.startswith(';'):
-                            continue
-                        if item[0] == 'X':
-                            if absolutely:
-                                pass
-                            currX = currX + float(item[1:])
-                        if item[0] == 'Y':
-                            if absolutely:
-                                pass
-                            currY = currY + float(item[1:])
-                        if item[0] == 'Z':
-                            if absolutely:
-                                pass
-                            Z = lastZ + float(item[1:])
                         if item[0] == 'E':
-                            if absolutely:
-                                pass
-                            E = currE + float(item[1:])
-                            if currE > E:
-                                ebackWard = currE - E
-                            else:
-                                ebackWard = 0
-                            currE = E
-                            # M220 设置进给百分比，该百分比适用于所有（X，Y，Z和E）轴上的所有基于G代码的移动。
-                            if reduceSpeedAppending and currE - reduceSpeedLastE > self.para.reduceSpeedELength:
-                                reduceSpeedAppending = False
-                                lines[lineno] = line + '\n' + '11M220 S100' + switchNote + '\n'
-                                gcodeChangeFlag = True
-                        if item[0] == 'F':
-                            currF = float(item[1:])
-                    if cutFlag:
-                        lines[lineno] = ''
-                        gcodeChangeFlag = True
-                    elif len(mapped_height_list) > 0 and Z:
-                        # if Z - lastZ >= 0.8:
-                        #     continue
-                        # lastZ = Z
-                        if lastZ != Z: #TODO：截留填充
-                            if self.para.enableCutInfill and Z >= self.para.cutInfillHeight:
-                                enableCutInfillStart = keepLayer >= self.para.cutInfillLayerNr
-                                if not enableCutInfillStart:
-                                    keepLayer += 1
-                                lastZ = Z
-                        if lastValidLayerZ > Z:
-                            mapped_ratio_index = 0
-                            keepLayer = 0
-                            enableCutInfillStart = self.para.enableCutInfill
-                            scriptCnt = 0
-                            lastValidLayerZ = 0
-                            lastZ = 0
-                        if Z >= mapped_height_list[mapped_ratio_index]:
-                            curr_step = 0
-                            curr_ratio = mapped_ratio_list[mapped_ratio_index]
-                            _line = ''
-                            if filamentPrepareAppending:#进退料使能
-                                filamentPrepareAppending = False
-                                if curr_ratio == 1:
-                                    currEName = 'A'
-                                    alterEName = 'B'
-                                else:
-                                    currEName = 'B'
-                                    alterEName = 'A'
-                                _line += 'G0 %s-%f F%f I0' % (currEName, self.para.backwardLength, self.para.backwardSpeed * 60) + switchNote + ' prepare\n'
-                                _line += 'G0 %s%f F%f I0' % (alterEName, self.para.forwardLength, self.para.forwardSpeed * 60) + switchNote + ' prepare\n'
-                                _line += 'G0 %s15 F300 I0' % alterEName + switchNote + ' prepare\n'
-                                _line += 'G0 %s-%f F%f I0' % (alterEName, self.para.backwardLength, self.para.backwardSpeed * 60) + switchNote + ' prepare\n'
-                                _line += 'G0 %s%f F%f I0' % (currEName, self.para.forwardLength, self.para.forwardSpeed * 60) + switchNote + ' prepare\n'
-                                _line += 'G92 A0 B0' + switchNote + ' prepare\n'
-                        if scriptCnt > 0 and self.para.enableSwitchFilamentBackward: #换料时进退料使能
-                            _line = 'G0 E-%f F%f' % (self.para.backwardLength - ebackWard, self.para.backwardSpeed * 60) + switchNote + '\n' + _line
-                        #创客主板没有使能开关
-                        #TODO：_s = 'M6050 S%f P%f Z%f;DUAL_IN_ONE_OUT:ratio:%f height:%f gradient:%d\n' % (curr_ratio, curr_step, mapped_height_list[mapped_ratio_index], curr_ratio, mapped_height_list[mapped_ratio_index], mapped_gradient_list[mapped_ratio_index])
-                        if scriptCnt == 0:
-                            _s = ';MAX_Z_HEIGHT:%f\n' % height + _s
-                        line = _line + _s + line + switchNote + '\n'
-                        if scriptCnt > 0 and self.para.enableSwitchFilamentBackward:
-                            if self.para.enableSwitchFilamentHome:
-                                line += 'G0 X5 Y5 F9000' + switchNote + '\n'
-                            if not self.para.enableSwitchFilamentHome:
-                                pass
-                            trueLength = self.para.backwardLength
-                            line += 'G0 E%f F%f ' % (trueLength - ebackWard, self.para.forwardSpeed * 60) + switchNote + '\n'
-                            if self.para.enableSwitchFilamentHome:
-                                if (self.para.forwardLength - self.para.backwardLength) + ebackWard > 0:
-                                    line += 'G0 E%f F120 ' % ((self.para.forwardLength - self.para.backwardLength) + ebackWard) + switchNote + '\n'
-                                if self.para.homeDelay > 0:
-                                    line += 'G4 P%f' % self.para.homeDelay * 1000 + switchNote + '\n'
-                                if ebackWard > 0:
-                                    line += 'G0 E-%f F%f ' % (ebackWard, self.para.backwardSpeed * 60) + switchNote + '\n'
-                                line += 'G0 X%f Y%f F9000' % (currX, currY) + switchNote + '\n'
-                            line += 'G92 E' + str(currE) + switchNote + '\n'
-                        line += 'G0 F%f' % currF + switchNote + '\n'
-                        if self.para.switchFilamentReduceSpeed:#TODO M220 设置进给百分比，该百分比适用于所有（X，Y，Z和E）轴上的所有基于G代码的移动。
-                            line += 'M220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
-                            reduceSpeedAppending = True
-                            reduceSpeedLastE = currE
-                        scriptCnt = scriptCnt + 1
-                        lastValidLayerZ = Z
-                        if mapped_ratio_index < len(mapped_height_list) - 1:
-                            mapped_ratio_index += 1
-                        lines[lineno] = line
-                        gcodeChangeFlag = True
-                        print('generate extrude switch code')
-                        continue
-                if line.startswith('M6050'):
-                    continue
+                            curr_E += float(item[1:])
+                            if reduceSpeedRatio:#挤出机发生改变记录当前挤出值
+                                prev_E = curr_E
+                                reduceSpeedRatio = False
 
-                if layer_init == 0 or line.startswith(';LAYER_COUNT:'):
-                    layer_init = 1
-                    continue
-                if switchNote in line:
-                    continue
+                if self.para.enableSwitchFilamentBackward and extruderChangeFlag:
+                    # TODO:  换色时是否减速 并且减速后多久恢复速度
+                    if self.para.switchFilamentReduceSpeed and reduceSpeedRatio1:
+                        if (curr_E -  prev_E) > self.para.reduceSpeedELength :
+                            lines[lineno] += '\nM220 S100'+ switchNote + '\n'
+                            gcodeChangeFlag = True
+                            reduceSpeedRatio1 = False
 
-                if line.startswith(';MAX_Z_HEIGHT:'):
-                    continue
+                    #TODO：换色时的进退料使能是否开启
+                if self.para.enableSwitchFilamentBackward and extruderChangeFlag:
+                    # TODO:  换色时是否减速 并且减速后多久恢复速度
+                    if self.para.switchFilamentReduceSpeed and not reduceSpeedRatio1 :
+                        #TODO: 减速至
+                        #reduceSpeedRatio = float(self.para.reduceSpeedRatio)
+                        lines[lineno] += 'M220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
+                        gcodeChangeFlag = True
+                        reduceSpeedRatio1 = True
+                        #TODO：挤出多少后恢复速度
 
-                if line.startswith('G92'):
-                    E = self.getValue(line, 'E', currE)
-                    if E != currE:
-                        currE = E
-                        ebackWard = 0
-                    lastZ = self.getValue(line, 'Z', lastZ)
-                    continue
-                if enableCutInfillStart and line.startswith(';TYPE:'):
-                    if line.startswith(';TYPE:FILL'):
-                        cutFlag = True
-                        gcodeChangeFlag = True
-                        lastEBackWard = ebackWard
-                    if cutFlag:
-                        lines[lineno] = 'G0 X%f Y%f F%f\nG92 E%f\n' % (currX, currY, currF, (currE - lastEBackWard) + ebackWard) + line
-                        cutFlag = False
-                        gcodeChangeFlag = True
-                        continue
-                if line.startswith('G91'):
-                    absolutely = False
-                    continue
-                if line.startswith('G90'):
-                    absolutely = True
-                if gcodeChangeFlag:
-                    data[index] = '\n' + '\n'.join(filter((lambda x: len(x) > 0), lines)) + '\n'
+            if gcodeChangeFlag:
+                data[index] = '\n' + '\n'.join(filter((lambda x: len(x) > 0), lines)) + '\n'
+            # if layer.startswith(';LAYER:'):
+            #     curr_ = line.split(':')
+            #     print("SB:",curr_)
+            #     curr_layer = int(curr_[1])
+
+
+            # if gcodeChangeFlag:
+            #     data[curr_layer] = '\n' + stringcopy + data[curr_layer];
+            #     gcodeChangeFlag = False
+            #lines = layer.split('\n')
+            # gcodeChangeFlag = False
+            # for lineno in range(len(lines)):
+            #     line = lines[lineno]
+            #     if line.startswith('G1 ') or line.startswith('G0 '):
+            #         s = line.split(' ')
+            #         (Z, E) = (None, None)
+            #         for item in s[1:]:
+            #             if len(item) <= 1:
+            #                 continue
+            #             if item.startswith(';'):
+            #                 break #当出现； 分号 后面的都是注释直接退出当前循环
+            #             if item[0] == 'X':
+            #                 if absolutely:
+            #                     pass
+            #                 currX = currX + float(item[1:])
+            #             if item[0] == 'Y':
+            #                 if absolutely:
+            #                     pass
+            #                 currY = currY + float(item[1:])
+            #             if item[0] == 'Z':
+            #                 if absolutely:
+            #                     pass
+            #                 Z = lastZ + float(item[1:])
+            #             if item[0] == 'E':
+            #                 if absolutely:
+            #                     pass
+            #                 E = currE + float(item[1:])
+            #                 if currE > E:
+            #                     ebackWard = currE - E
+            #                 else:
+            #                     ebackWard = 0
+            #                 currE = E
+            #                 # M220 设置进给百分比，该百分比适用于所有（X，Y，Z和E）轴上的所有基于G代码的移动。
+            #                 if reduceSpeedAppending and currE - reduceSpeedLastE > self.para.reduceSpeedELength:
+            #                     reduceSpeedAppending = False
+            #                     lines[lineno] = line + '\n' + 'M220 S100' + switchNote + '\n'
+            #                     gcodeChangeFlag = True
+            #             if item[0] == 'F':
+            #                 currF = float(item[1:])
+            #         if cutFlag:
+            #             lines[lineno] = ''
+            #             gcodeChangeFlag = True
+            #         elif len(mapped_height_list) > 0 and Z:
+            #             # if Z - lastZ >= 0.8:
+            #             #     continue
+            #             # lastZ = Z
+            #             if lastZ != Z: #TODO：截留填充
+            #                 if self.para.enableCutInfill and Z >= self.para.cutInfillHeight:
+            #                     enableCutInfillStart = keepLayer >= self.para.cutInfillLayerNr
+            #                     if not enableCutInfillStart:
+            #                         keepLayer += 1
+            #                     lastZ = Z
+            #             if lastValidLayerZ > Z:
+            #                 mapped_ratio_index = 0
+            #                 keepLayer = 0
+            #                 enableCutInfillStart = self.para.enableCutInfill
+            #                 scriptCnt = 0
+            #                 lastValidLayerZ = 0
+            #                 lastZ = 0
+            #             if Z >= mapped_height_list[mapped_ratio_index]:
+            #                 curr_step = 0
+            #                 curr_ratio = mapped_ratio_list[mapped_ratio_index]
+            #                 _line = ''
+            #                 if filamentPrepareAppending:#进退料使能
+            #                     filamentPrepareAppending = False
+            #                     if curr_ratio == 1:
+            #                         currEName = 'A'
+            #                         alterEName = 'B'
+            #                     else:
+            #                         currEName = 'B'
+            #                         alterEName = 'A'
+            #                     _line += 'G0 %s-%f F%f I0' % (currEName, self.para.backwardLength, self.para.backwardSpeed * 60) + switchNote + ' prepare\n'
+            #                     _line += 'G0 %s%f F%f I0' % (alterEName, self.para.forwardLength, self.para.forwardSpeed * 60) + switchNote + ' prepare\n'
+            #                     _line += 'G0 %s15 F300 I0' % alterEName + switchNote + ' prepare\n'
+            #                     _line += 'G0 %s-%f F%f I0' % (alterEName, self.para.backwardLength, self.para.backwardSpeed * 60) + switchNote + ' prepare\n'
+            #                     _line += 'G0 %s%f F%f I0' % (currEName, self.para.forwardLength, self.para.forwardSpeed * 60) + switchNote + ' prepare\n'
+            #                     _line += 'G92 A0 B0' + switchNote + ' prepare\n'
+            #             if scriptCnt > 0 and self.para.enableSwitchFilamentBackward: #换料时进退料使能
+            #                 _line = 'G0 E-%f F%f' % (self.para.backwardLength - ebackWard, self.para.backwardSpeed * 60) + switchNote + '\n' + _line
+            #             #创客主板没有使能开关
+            #             #TODO：_s = 'M6050 S%f P%f Z%f;DUAL_IN_ONE_OUT:ratio:%f height:%f gradient:%d\n' % (curr_ratio, curr_step, mapped_height_list[mapped_ratio_index], curr_ratio, mapped_height_list[mapped_ratio_index], mapped_gradient_list[mapped_ratio_index])
+            #             if scriptCnt == 0:
+            #                 _s = ';MAX_Z_HEIGHT:%f\n' % height
+            #             line = _line + _s + line + switchNote + '\n'
+            #             if scriptCnt > 0 and self.para.enableSwitchFilamentBackward:
+            #                 if self.para.enableSwitchFilamentHome:
+            #                     line += 'G0 X5 Y5 F9000' + switchNote + '\n'
+            #                 if not self.para.enableSwitchFilamentHome:
+            #                     pass
+            #                 trueLength = self.para.backwardLength
+            #                 line += 'G0 E%f F%f ' % (trueLength - ebackWard, self.para.forwardSpeed * 60) + switchNote + '\n'
+            #                 if self.para.enableSwitchFilamentHome:
+            #                     if (self.para.forwardLength - self.para.backwardLength) + ebackWard > 0:
+            #                         line += 'G0 E%f F120 ' % ((self.para.forwardLength - self.para.backwardLength) + ebackWard) + switchNote + '\n'
+            #                     if self.para.homeDelay > 0:
+            #                         line += 'G4 P%f' % self.para.homeDelay * 1000 + switchNote + '\n'
+            #                     if ebackWard > 0:
+            #
+            #                         line += 'G0 E-%f F%f ' % (ebackWard, self.para.backwardSpeed * 60) + switchNote + '\n'
+            #                     line += 'G0 X%f Y%f F9000' % (currX, currY) + switchNote + '\n'
+            #                 line += 'G92 E' + str(currE) + switchNote + '\n'
+            #             line += 'G0 F%f' % currF + switchNote + '\n'
+            #             if self.para.switchFilamentReduceSpeed:#TODO M220 设置进给百分比，该百分比适用于所有（X，Y，Z和E）轴上的所有基于G代码的移动。
+            #                 line += 'M220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
+            #                 reduceSpeedAppending = True
+            #                 reduceSpeedLastE = currE
+            #             scriptCnt = scriptCnt + 1
+            #             lastValidLayerZ = Z
+            #             if mapped_ratio_index < len(mapped_height_list) - 1:
+            #                 mapped_ratio_index += 1
+            #             lines[lineno] = line
+            #             gcodeChangeFlag = True
+            #             print('generate extrude switch code')
+            #             continue
+            #     if line.startswith('M6050'):
+            #         continue
+            #
+            #     if layer_init == 0 or line.startswith(';LAYER_COUNT:'):
+            #         layer_init = 1
+            #         continue
+            #     if switchNote in line:
+            #         continue
+            #
+            #     if line.startswith(';MAX_Z_HEIGHT:'):
+            #         continue
+            #
+            #     if line.startswith('G92'):
+            #         E = self.getValue(line, 'E', currE)
+            #         if E != currE:
+            #             currE = E
+            #             ebackWard = 0
+            #         lastZ = self.getValue(line, 'Z', lastZ)
+            #         continue
+            #     if enableCutInfillStart and line.startswith(';TYPE:'):
+            #         if line.startswith(';TYPE:FILL'):
+            #             cutFlag = True
+            #             gcodeChangeFlag = True
+            #             lastEBackWard = ebackWard
+            #         if cutFlag:
+            #             lines[lineno] = 'G0 X%f Y%f F%f\nG92 E%f\n' % (currX, currY, currF, (currE - lastEBackWard) + ebackWard) + line
+            #             cutFlag = False
+            #             gcodeChangeFlag = True
+            #             continue
+            #     if line.startswith('G91'):
+            #         absolutely = False
+            #         continue
+            #     if line.startswith('G90'):
+            #         absolutely = True
+            #     if gcodeChangeFlag:
+            #data[index] = '\n' + '\n'.join(filter((lambda x: len(x) > 0), lines)) + '\n'
         return data
 
         return (None,)
