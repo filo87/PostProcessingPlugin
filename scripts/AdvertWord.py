@@ -508,12 +508,12 @@ class AdvertWord(Script):
                 except:
                     print("sum layer errer")
 
-        switchNote = ';extruder switch YY'
+        switchNote = ';TWOSILLY'
         curr_layer = -1 #当前层
         curr_E = 0 #当前挤出机值
         prev_E = 0# 上一次挤出
-        reduceSpeedRatio = False#开始记录当前挤出值
-        reduceSpeedRatio1 = False#为了确定已经换收过速
+        #reduceSpeedRatio = -1#开始记录当前挤出值 TODO：-1 普通状态 1：已经发生换层事件，0：已经发生过减速事件
+        SwitchFilament = -1 #是否存在换色操作
         for layer in data:
             index += 1
             stringcopy = ""
@@ -525,16 +525,40 @@ class AdvertWord(Script):
                 #计算当前层计数
                 if line.startswith(';LAYER:'):
                     curr_ = line.split(':')
-                    print("SB:", curr_)
+                    print("LAYER:", curr_)
                     curr_layer = int(curr_[1])
                 if curr_layer in b_gradient_list and not extruderChangeFlag:  # 找到当前打印头
-                    stringcopy = "\n" + "G91 ;relative " + switchNote+ "\n"
+                    #TODO:换层前需要对当前打印头回退
+                    if self.para.enableSwitchFilamentBackward and self.para.backwardLength > 0 and  curr_layer != 0:
+                        stringcopy +="\nG1 F%f E-%f" % ((self.para.backwardSpeed * 60),self.para.backwardLength )+ switchNote+ "\n"
+                    #TODO:切换打印头
+                    stringcopy += "\n" + "G91 ;relative " + switchNote+ "\n"
                     stringcopy = stringcopy + ratio_list[b_gradient_list.index(curr_layer)]  + switchNote+ "\n"
                     stringcopy = stringcopy + "G90;absolute" + switchNote+ "\n"
+                    #TODO：切换完成后需要有一个补偿值
+                    if self.para.enableSwitchFilamentBackward and self.para.forwardLength > 0 and  curr_layer != 0:
+                        stringcopy += "\nG1 F%f E%f" % ((self.para.forwardSpeed * 60), self.para.forwardLength) + switchNote + "\n"
                     lines[lineno] += stringcopy + "\n"
                     extruderChangeFlag = True
-                    reduceSpeedRatio = True
+                    SwitchFilament = 1
                     gcodeChangeFlag = True
+
+                    #TODO：换色时的进退料使能是否开启
+                if self.para.enableSwitchFilamentBackward and extruderChangeFlag and  SwitchFilament == 1 :
+                    #TODO：换色后是否归零
+                    if self.para.enableSwitchFilamentHome:
+                        lines[lineno] += '\nG0 X5 Y5 F9000' + switchNote + '\n'
+                        gcodeChangeFlag = True
+                        if self.para.homeDelay > 0:
+                            lines[lineno] += '\nG4 P%f' % (self.para.homeDelay * 1000) + switchNote + '\n'
+                            gcodeChangeFlag = True
+                    # TODO:  换色时是否减速 并且减速后多久恢复速度
+                    if self.para.switchFilamentReduceSpeed :
+                        #TODO: 减速比例
+                        #reduceSpeedRatio = float(self.para.reduceSpeedRatio)
+                        lines[lineno] += '\nM220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
+                        gcodeChangeFlag = True
+                        SwitchFilament = 0
 
                 if line.startswith('G1 ') or line.startswith('G0 '):
                     line_split = line.split(' ')
@@ -542,29 +566,21 @@ class AdvertWord(Script):
                         if len(item) <= 1:
                             continue
                         if item[0] == 'E':
-                            curr_E += float(item[1:])
-                            if reduceSpeedRatio:#挤出机发生改变记录当前挤出值
+                            curr_E = float(item[1:])
+                            if not SwitchFilament:#挤出机发生改变记录当前挤出值
                                 prev_E = curr_E
-                                reduceSpeedRatio = False
+                                SwitchFilament = 2
 
-                if self.para.enableSwitchFilamentBackward and extruderChangeFlag:
+                if self.para.enableSwitchFilamentBackward :
                     # TODO:  换色时是否减速 并且减速后多久恢复速度
-                    if self.para.switchFilamentReduceSpeed and reduceSpeedRatio1:
-                        if (curr_E -  prev_E) > self.para.reduceSpeedELength :
+                    if self.para.switchFilamentReduceSpeed and SwitchFilament == 2:
+                        if (curr_E -  prev_E) >= self.para.reduceSpeedELength :
                             lines[lineno] += '\nM220 S100'+ switchNote + '\n'
                             gcodeChangeFlag = True
-                            reduceSpeedRatio1 = False
+                            SwitchFilament = -1
 
-                    #TODO：换色时的进退料使能是否开启
-                if self.para.enableSwitchFilamentBackward and extruderChangeFlag:
-                    # TODO:  换色时是否减速 并且减速后多久恢复速度
-                    if self.para.switchFilamentReduceSpeed and not reduceSpeedRatio1 :
-                        #TODO: 减速至
-                        #reduceSpeedRatio = float(self.para.reduceSpeedRatio)
-                        lines[lineno] += 'M220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
-                        gcodeChangeFlag = True
-                        reduceSpeedRatio1 = True
-                        #TODO：挤出多少后恢复速度
+
+
 
             if gcodeChangeFlag:
                 data[index] = '\n' + '\n'.join(filter((lambda x: len(x) > 0), lines)) + '\n'
