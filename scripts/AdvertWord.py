@@ -12,15 +12,15 @@ class AdvertWordPara:
     __qualname__ = 'AdvertWordPara'
     
     def __init__(self):
-        self.enableCutInfill = False
-        self.cutInfillHeight = 20
-        self.cutInfillLayerNr = 4
+        # self.enableCutInfill = False
+        # self.cutInfillHeight = 20
+        # self.cutInfillLayerNr = 4
         self.enableSwitchFilamentBackward = True
         self.enableSwitchFilamentHome = False
         self.switchFilamentReduceSpeed = False
         self.reduceSpeedRatio = 50
         self.reduceSpeedELength = 20
-        self.homeDelay = 0
+        self.homeDelay = 0.0
         self.backwardLength = 43
         self.backwardSpeed = 80
         self.forwardLength = 43
@@ -528,16 +528,17 @@ class AdvertWord(Script):
                     print("LAYER:", curr_)
                     curr_layer = int(curr_[1])
                 if curr_layer in b_gradient_list and not extruderChangeFlag:  # 找到当前打印头
+                    #TODO:切换打印头
+                    stringcopy += "\n" + "G91 ;relative " + switchNote+ "\n"
                     #TODO:换层前需要对当前打印头回退
                     if self.para.enableSwitchFilamentBackward and self.para.backwardLength > 0 and  curr_layer != 0:
                         stringcopy +="\nG1 F%f E-%f" % ((self.para.backwardSpeed * 60),self.para.backwardLength )+ switchNote+ "\n"
-                    #TODO:切换打印头
-                    stringcopy += "\n" + "G91 ;relative " + switchNote+ "\n"
                     stringcopy = stringcopy + ratio_list[b_gradient_list.index(curr_layer)]  + switchNote+ "\n"
-                    stringcopy = stringcopy + "G90;absolute" + switchNote+ "\n"
                     #TODO：切换完成后需要有一个补偿值
                     if self.para.enableSwitchFilamentBackward and self.para.forwardLength > 0 and  curr_layer != 0:
                         stringcopy += "\nG1 F%f E%f" % ((self.para.forwardSpeed * 60), self.para.forwardLength) + switchNote + "\n"
+                    stringcopy = stringcopy + "G90;absolute" + switchNote + "\n"
+                    #TODO：换回原来的打印速度
                     lines[lineno] += stringcopy + "\n"
                     extruderChangeFlag = True
                     SwitchFilament = 1
