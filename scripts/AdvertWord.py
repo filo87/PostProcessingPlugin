@@ -508,7 +508,7 @@ class AdvertWord(Script):
                 except:
                     print("sum layer errer")
 
-        switchNote = ';TWOSILLY'
+        switchNote = ';TWOSILLY V1.0'
         curr_layer = -1 #当前层
         Lyaer_sum = 0;
         curr_E = 0 #当前挤出机值
@@ -561,7 +561,7 @@ class AdvertWord(Script):
                         #reduceSpeedRatio = float(self.para.reduceSpeedRatio)
                         lines[lineno] += '\nM220 S%f' % self.para.reduceSpeedRatio + switchNote + '\n'
                         gcodeChangeFlag = True
-                        SwitchFilament = 0
+                    SwitchFilament = 0
 
                 if line.startswith('G1 ') or line.startswith('G0 '):
                     line_split = line.split(' ')
