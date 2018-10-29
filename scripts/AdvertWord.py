@@ -510,6 +510,7 @@ class AdvertWord(Script):
 
         switchNote = ';TWOSILLY'
         curr_layer = -1 #当前层
+        Lyaer_sum = 0;
         curr_E = 0 #当前挤出机值
         prev_E = 0# 上一次挤出
         #reduceSpeedRatio = -1#开始记录当前挤出值 TODO：-1 普通状态 1：已经发生换层事件，0：已经发生过减速事件
@@ -524,6 +525,7 @@ class AdvertWord(Script):
                 line = lines[lineno]
                 #计算当前层计数
                 if line.startswith(';LAYER:'):
+                    Lyaer_sum += 1
                     curr_ = line.split(':')
                     print("LAYER:", curr_)
                     curr_layer = int(curr_[1])
@@ -531,11 +533,11 @@ class AdvertWord(Script):
                     #TODO:切换打印头
                     stringcopy += "\n" + "G91 ;relative " + switchNote+ "\n"
                     #TODO:换层前需要对当前打印头回退
-                    if self.para.enableSwitchFilamentBackward and self.para.backwardLength > 0 and  curr_layer != 0:
+                    if self.para.enableSwitchFilamentBackward and self.para.backwardLength > 0 and  Lyaer_sum > 1:
                         stringcopy +="\nG1 F%f E-%f" % ((self.para.backwardSpeed * 60),self.para.backwardLength )+ switchNote+ "\n"
                     stringcopy = stringcopy + ratio_list[b_gradient_list.index(curr_layer)]  + switchNote+ "\n"
                     #TODO：切换完成后需要有一个补偿值
-                    if self.para.enableSwitchFilamentBackward and self.para.forwardLength > 0 and  curr_layer != 0:
+                    if self.para.enableSwitchFilamentBackward and self.para.forwardLength > 0 and   Lyaer_sum > 1:
                         stringcopy += "\nG1 F%f E%f" % ((self.para.forwardSpeed * 60), self.para.forwardLength) + switchNote + "\n"
                     stringcopy = stringcopy + "G90;absolute" + switchNote + "\n"
                     #TODO：换回原来的打印速度
